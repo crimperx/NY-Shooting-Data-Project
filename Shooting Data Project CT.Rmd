@@ -1,0 +1,189 @@
+---
+title: "NYPD Shooting Project"
+author: "Chris Talbot"
+date: "2024-02-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+The following code instals the tidyverse package
+
+```{r}
+library(tidyverse)
+
+```
+
+Import the "NYPD shooting incident data historic"
+```{r}
+url_in <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+
+# Import data directly from the URL
+shooting_data <- read_csv(url_in)
+
+```
+Tidy up the data a little to only show the desired columns.
+
+```{r}
+# Keep only columns 2, 3s, 4, 6, 10, 11, 12, 13, 14, 15, 16, 19, 20
+   shooting_data_subset <- shooting_data[, c(2, 3, 4, 6, 10, 11, 12, 13, 14, 15, 16, 19, 20)]
+head(shooting_data_subset)
+```
+Tidy up the Dates to a more usable form.
+
+```{r}
+# Convert 'OCCUR_DATE' to Date format if not already
+shooting_data_subset$OCCUR_DATE <- mdy(shooting_data_subset$OCCUR_DATE)
+ 
+ # Extract the year from OCCUR_DATE
+ shooting_data_subset$Year <- format(shooting_data_subset$OCCUR_DATE, "%Y")
+ 
+ # Count occurrences for each year
+ shooting_data_year_counts <- table(shooting_data_subset$Year)
+ 
+ print(shooting_data_year_counts)
+```
+```{r}
+
+# Create a scatter plot
+
+# Convert the table to a data frame
+shooting_data_df <- as.data.frame(shooting_data_year_counts)
+
+# Create a scatter plot
+ggplot(shooting_data_df, aes(x = Var1, y = Freq)) +
+  geom_point(size = 3, color = "blue") +
+  labs(title = "Scatter Plot of Year Counts", x = "Year", y = "Counts")+
+  ylim(0, max(shooting_data_df$Freq) + 10)
+
+```
+
+
+```{r}
+# Calculate mean
+ mean(shooting_data_year_counts)
+```
+
+```{r} 
+# Calculate median
+median(shooting_data_year_counts)
+```
+ 
+```{r}
+# Calculate range
+ range(shooting_data_year_counts)
+
+```
+```{r}
+shooting_data_boro <- table(shooting_data_subset$BORO) 
+print(shooting_data_boro)
+```
+
+```{r}
+shooting_data_precinct <- table(shooting_data_subset$PRECINCT) 
+column_counts_precinct <- table(shooting_data_subset$PRECINCT)
+max(column_counts_precinct)
+```
+
+```{r}
+names(column_counts_precinct)[which.max(column_counts_precinct)]
+```
+```{r}
+shooting_data_perp_race <- table(shooting_data_subset$PERP_RACE)
+shooting_data_perp_race
+```
+```{r}
+shooting_data_vic_race <- table(shooting_data_subset$VIC_RACE)
+shooting_data_vic_race
+```
+
+```{r}
+# Create a two-way table using the table function
+two_way_table_race <- table(shooting_data_subset$VIC_RACE, shooting_data_subset$PERP_RACE)
+
+# Add row and column totals
+two_way_table_race_with_totals <- addmargins(two_way_table_race)
+
+# Display the table with totals
+print(two_way_table_race_with_totals)
+```
+
+
+```{r}
+shooting_data_perp_age <- shooting_data_subset %>%
+  mutate(VIC_AGE_GROUP = str_trim(VIC_AGE_GROUP)) %>%
+  filter(VIC_AGE_GROUP != "1020")
+
+
+perp_age_table <- table(shooting_data_perp_age$VIC_AGE_GROUP)
+perp_age_table
+```
+
+```{r}
+shooting_data_vic_age <- table(shooting_data_subset$VIC_AGE_GROUP)
+shooting_data_vic_age
+```
+```{r}
+# Create a two-way table using the table function
+two_way_table_age <- table(shooting_data_subset$VIC_AGE_GROUP, shooting_data_subset$PERP_AGE_GROUP)
+
+# Add row and column totals
+two_way_table_age_with_totals <- addmargins(two_way_table_age)
+
+# Display the table with totals
+print(two_way_table_age_with_totals)
+```
+```{r}
+# Load ggplot2 package
+library(ggplot2)
+
+# Create a scatter plot using specific columns
+ggplot(shooting_data_subset, aes(x = OCCUR_DATE, y = PRECINCT)) +
+  geom_point(size = 1, color = "blue") +
+  labs(title = "Scatter Plot", x = "Year", y = "Precinct")
+```
+```{r}
+# Cumulative Frequency Plot
+ggplot(shooting_data_subset, aes(x = OCCUR_DATE)) +
+  stat_ecdf(geom = "step", aes(y = ..y..)) +
+  labs(title = "Cumulative Frequency Plot", x = "Date", y = "Cumulative Frequency")
+```
+
+
+This creates a heat map of sorts
+```{r}
+library(leaflet)
+library(dplyr)
+``` 
+
+Conclusion:
+Based on the scatter plot, it looked like gun crime was on the decline until 2019 and then it spiked back up. More research will need to be conducted to identify any causality.  I was biased going into this assignment, probably by news reports and the fact that I was mugged by a young black man once.  I dealt with this biased by letting the data speak for it self.  What all of this doesn't show is causality.  The data, for unknown reasons, shows that young black on black crime in New York City is the most prevalent.  
+
+Side note.  Here is my attempt to create a heat map.  It sort of worked.  It doesn't show up in the Knit. But if you run the code in R it works.  Not how I wanted it though.  It will take a little more time to sort it out properly.  It probably needs TABLEUA.
+
+```{r}
+ map <- leaflet(shooting_data_subset) %>%
+     addTiles()  
+ 
+ 
+ map <- map %>%
+     addMarkers(
+         lng = ~Longitude,
+         lat = ~Latitude,
+         options = markerOptions(
+             radius = 1,  # Adjust the radius as needed
+             opacity = 0.7,
+             fillOpacity = 0.7,
+             heatmapOptions = list(radius = 5)  # Adjust the heatmap radius as needed
+         )
+     )
+
+ ```
